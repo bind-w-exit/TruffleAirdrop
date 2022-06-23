@@ -22,45 +22,69 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
     mapping(address => uint256) public tokenBalances;
     mapping(address => uint256) public etherBalances;
 
-    event UpdateTokenAddress(address newTokenAddress);
-    event DepositTokens(address from, uint256 amount);
-    event DepositEther(address from, uint256 amount);
-    event WithdrawTokens(address to, uint256 amount);
-    event WithdrawEther(address to, uint256 amount);
-    event DropTokens(address to, uint256 amount);
-    event DropEther(address to, uint256 amount);
-    event ClaimTokens(address to, uint256 amount);
-    event ClaimEther(address to, uint256 amount);
 
-
+    /**
+     * @dev Initializes the accepted token as a reward token.
+     * Creates a DOMAIN_SEPARATOR and CONTAINER_TYPE to verify the signature of an EIP-712 message.
+     *
+     * @param tokenAddress ERC-20 token address.
+     */
     constructor(address tokenAddress) {
         updateTokenAddress(tokenAddress);
         CONTAINER_TYPE = keccak256("Container(address recipient,uint256 amount,uint256 deadline,address rewardType)");
         DOMAIN_SEPARATOR = _domainSeparatorV4();
     }
 
+    /**
+     * @dev Updates token address.
+     * Can only be called by the current owner.
+     *
+     * Emits an {UpdateTokenAddress} event that indicates a change in the token address.
+     *
+     * @param tokenAddress ERC-20 token address.
+     */
     function updateTokenAddress(address tokenAddress) public onlyOwner {
-        require(tokenAddress != address(0), "Token address shouldn't be zero");
+        require(tokenAddress != address(0), "Airdrop: update token to zero address");
 
         token = ERC20(tokenAddress);
         emit UpdateTokenAddress(tokenAddress);
     }
 
+    /**
+     * @dev Transfers tokens from owner to this contract.
+     * Can only be called by the current owner.
+     *
+     * Emits an {DepositTokens} event that indicates from what address and how many tokens was transferred to the contract.
+     * @param amount Amount of tokens.
+     */
     function depositTokens(uint256 amount) external onlyOwner {
-        require(amount > 0, "The transaction amount is zero");
+        require(amount > 0, "Airdrop: zero transaction amount");
 
         totalSupply += amount;
         token.safeTransferFrom(msg.sender, address(this), amount);
         emit DepositTokens(msg.sender, amount);
     }
 
+    /**
+     * @dev Transfers ether from owner to this contract.
+     * Can only be called by the current owner.
+     *
+     * Emits an {DepositEther} event that indicates from what address and how many ether was transferred to the contract.
+     * Without parameters.
+     */
     function depositEther() external payable onlyOwner {
         emit DepositEther(msg.sender, msg.value);
     }
-   
+    
+    /**
+     * @dev Transfers tokens back to the owner.
+     * Can only be called by the current owner.
+     *
+     * Emits an {WithdrawTokens} event that indicates to what address and how many tokens were withdrawn from the contract.
+     * Without parameters.
+     */
     function withdrawTokens() external onlyOwner {
-        require(totalSupply > 0, "The transaction amount is zero");
-
+        require(totalSupply > 0, "Airdrop: none tokens in the contact");
 
         uint256 totalSupplyBefore = totalSupply;
         totalSupply = 0;
@@ -68,35 +92,86 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
         emit WithdrawTokens(msg.sender, totalSupplyBefore);
     }
 
+    /**
+     * @dev Transfers ether back to the owner.
+     * Can only be called by the current owner.
+     *
+     * Emits an {WithdrawEther} event that indicates to what address and how many ether were withdrawn from the contract.
+     * Without parameters.
+     */
     function withdrawEther() external onlyOwner {
-        uint256 balanceBefore = address(this).balance;
-        require(balanceBefore > 0, "The transaction amount is zero");
+        uint256 balance = address(this).balance;
+        require(balance > 0, "Airdrop: no ether in the contact");
 
         address payable to = payable(msg.sender);
-        to.transfer(balanceBefore);
-        emit WithdrawEther(msg.sender, balanceBefore);
+        to.transfer(balance);
+        emit WithdrawEther(msg.sender, balance);
     }
 
+    /**
+     * @dev Sets the eligible tokens amount for recipient.
+     * Can only be called by the current owner.
+     * The owner should sign the transaction.
+     *
+     * Emits an {DropTokens} event that indicates that the eligible tokens amount was set for recipient.
+     *
+     * @param dropStruct Structure consisting of: 
+     *  address recipient,
+     *  uint256 amount,
+     *  uint256 deadline,
+     *  address rewardType,
+     *  bytes32 r,
+     *  bytes32 s,
+     *  uint8 v
+     */
     function dropTokens(DropStruct calldata dropStruct) public onlyOwner {
-        require(dropStruct.deadline > block.timestamp, "Deadline has passed");
-        require(dropStruct.rewardType == address(token), "Invalid revard type");
-        require(checkSign(dropStruct), "This message was not signed by owner");
+        require(dropStruct.deadline > block.timestamp, "Airdrop: deadline of this message has expired");
+        require(dropStruct.rewardType == address(token), "Airdrop: invalid reward type in the message");
+        require(checkSign(dropStruct), "Airdrop: this message wasn't signed by owner");
         
 
         tokenBalances[dropStruct.recipient] += dropStruct.amount;
         emit DropTokens(dropStruct.recipient, dropStruct.amount);
     }
 
+    /**
+     * @dev Sets the eligible ether amount for recipient.
+     * Can only be called by the current owner.
+     * The owner should sign the transaction.
+     *
+     * Emits an {DropEther} event that indicates that the eligible ether amount was set for recipient.
+     *
+     * @param dropStruct Structure consisting of: 
+     *  address recipient,
+     *  uint256 amount,
+     *  uint256 deadline,
+     *  address rewardType,
+     *  bytes32 r,
+     *  bytes32 s,
+     *  uint8 v
+     */
     function dropEther(DropStruct calldata dropStruct) public onlyOwner {
-        require(dropStruct.deadline > block.timestamp, "Deadline has passed");
-        require(dropStruct.rewardType == 0x0000000000000000000000000000000000000000, "Invalid revard type");
-        require(checkSign(dropStruct), "This message was not signed by owner");
+        require(dropStruct.deadline > block.timestamp, "Airdrop: deadline of this message has expired");
+        require(dropStruct.rewardType == 0x0000000000000000000000000000000000000000, "Airdrop: invalid reward type in the message");
+        require(checkSign(dropStruct), "Airdrop: this message wasn't signed by owner");
         
 
         etherBalances[dropStruct.recipient] += dropStruct.amount;
         emit DropEther(dropStruct.recipient, dropStruct.amount);
     }
 
+    /**
+     * @dev Checks if the message is signed by the contract owner.
+     *
+     * @param dropStruct Structure consisting of: 
+     *  address recipient,
+     *  uint256 amount,
+     *  uint256 deadline,
+     *  address rewardType,
+     *  bytes32 r,
+     *  bytes32 s,
+     *  uint8 v
+     */
     function checkSign(DropStruct calldata dropStruct) private view returns(bool isValid) {
         bytes32 digest =  keccak256(abi.encodePacked(
             "\x19\x01",
@@ -112,6 +187,21 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
         return digest.recover(dropStruct.v, dropStruct.r, dropStruct.s) == owner();
     }
 
+    /**
+     * @dev Sets the eligible tokens and ether amounts for recipients.
+     * Can only be called by the current owner.
+     * The owner should sign the transaction.
+     *
+     *
+     * @param dropStructs An array of structures consisting of: 
+     *  address recipient,
+     *  uint256 amount,
+     *  uint256 deadline,
+     *  address rewardType,
+     *  bytes32 r,
+     *  bytes32 s,
+     *  uint8 v
+     */
     function drop(DropStruct[] calldata dropStructs) external onlyOwner {
         for (uint256 i = 0; i < dropStructs.length; i++) {           
             if (dropStructs[i].rewardType == 0x0000000000000000000000000000000000000000)
@@ -119,13 +209,19 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
             else if (dropStructs[i].rewardType == address(token))
                 dropTokens(dropStructs[i]);
             else
-                revert("No such reward");
+                revert("Airdrop: such reward doesn't exist");
         }
     }
 
+    /**
+     * @dev Transfers tokens to beneficiary.
+     *
+     * Emits an {ClaimTokens} event that indicates to what address and how much tokens were withdrawn from the contract.
+     * Without parameters.
+     */
     function claimTokens() external {
-        require(tokenBalances[msg.sender] > 0, "There are no tokens in your address");
-        require(totalSupply >= tokenBalances[msg.sender], "Not enough tokens in the contract total supply to withdraw them");
+        require(tokenBalances[msg.sender] > 0, "Airdrop: there are no tokens in your address");
+        require(totalSupply >= tokenBalances[msg.sender], "Airdrop: not enough tokens in the contract total supply to withdraw them");
 
         uint256 amount = tokenBalances[msg.sender];
         tokenBalances[msg.sender] = 0;  
@@ -134,9 +230,15 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
         emit ClaimTokens(msg.sender, amount);  
     }
 
+    /**
+     * @dev Transfers tokens to beneficiary.
+     *
+     * Emits an {ClaimEther} event that indicates to what address and how much ether were withdrawn from the contract.
+     * Without parameters.
+     */
     function claimEther() external {
-        require(etherBalances[msg.sender] > 0, "There are no ether in your address");
-        require(etherBalances[msg.sender] <= address(this).balance, "Contract doesn't own enough ether");
+        require(etherBalances[msg.sender] > 0, "Airdrop: there are no ether in your address");
+        require(etherBalances[msg.sender] <= address(this).balance, "Airdrop: contract doesn't own enough ether");
 
         uint256 amount = etherBalances[msg.sender];
         etherBalances[msg.sender] = 0;  
