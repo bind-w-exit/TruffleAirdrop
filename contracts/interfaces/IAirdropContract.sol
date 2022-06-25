@@ -14,14 +14,14 @@ interface IAirdropContract {
     }
 
     event UpdateTokenAddress(address newTokenAddress);
-    event DepositTokens(address from, uint256 amount);
-    event DepositEther(address from, uint256 amount);
-    event WithdrawTokens(address to, uint256 amount);
-    event WithdrawEther(address to, uint256 amount);
-    event DropTokens(address to, uint256 amount);
-    event DropEther(address to, uint256 amount);
-    event ClaimTokens(address to, uint256 amount);
-    event ClaimEther(address to, uint256 amount);
+    event DepositTokens(address indexed from, uint256 amount);
+    event DepositEther(address indexed from, uint256 amount);
+    event WithdrawTokens(address indexed to, uint256 amount);
+    event WithdrawEther(address indexed to, uint256 amount);
+    event DropTokens(address indexed to, uint256 amount);
+    event DropEther(address indexed to, uint256 amount);
+    event ClaimTokens(address indexed to, uint256 amount);
+    event ClaimEther(address indexed to, uint256 amount);
 
     /**
      * @dev Updates token address.

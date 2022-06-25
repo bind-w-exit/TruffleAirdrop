@@ -7,8 +7,6 @@ const {
     time
 } = require("@openzeppelin/test-helpers");
 
-//const { getMessage, encodeData  } = require("eip-712");
-
 
 require("chai")
     .use(require("chai-as-promised"))
@@ -435,7 +433,7 @@ contract("AirdropContract", function(accounts) {
             it("shouldn't transfer tokens to beneficiary if there are no reward tokens at this addresss", async () => {
                 await expectRevert(
                     airdropContract.claimTokens({ from: user1 }),
-                    "Airdrop: there are no tokens in your address"
+                    "Airdrop: no tokens available"
                 );
             });
 
@@ -445,7 +443,7 @@ contract("AirdropContract", function(accounts) {
                 
                 await expectRevert(
                     airdropContract.claimTokens({ from: user1 }),
-                    "Airdrop: not enough tokens in the contract total supply to withdraw them"
+                    "Airdrop: contract doesn't own enough tokens"
                 );
             });
 

@@ -1,38 +1,32 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity 0.8.14;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol'; 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "./IAirdropContract.sol";
+import "./interfaces/IAirdropContract.sol";
 
 
 contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
-    using SafeERC20 for IERC20; 
-    using ECDSA for bytes32;
-    
+    using SafeERC20 for IERC20;   
 
-    bytes32 private immutable CONTAINER_TYPE;
-    bytes32 private immutable DOMAIN_SEPARATOR;
+    bytes32 private constant _CONTAINER_TYPE = keccak256("Container(address recipient,uint256 amount,uint256 deadline,address rewardType)");
   
     IERC20 public token;
-    uint256 public totalSupply;
+    uint256 public totalTokenSupply;
     mapping(address => uint256) public tokenBalances;
     mapping(address => uint256) public etherBalances;
 
 
     /**
      * @dev Initializes the accepted token as a reward token.
-     * Creates a DOMAIN_SEPARATOR and CONTAINER_TYPE to verify the signature of an EIP-712 message.
+     * Creates a DOMAIN_SEPARATOR and _CONTAINER_TYPE to verify the signature of an EIP-712 message.
      *
      * @param tokenAddress ERC-20 token address.
      */
     constructor(address tokenAddress) {
         updateTokenAddress(tokenAddress);
-        CONTAINER_TYPE = keccak256("Container(address recipient,uint256 amount,uint256 deadline,address rewardType)");
-        DOMAIN_SEPARATOR = _domainSeparatorV4();
     }
 
     /**
@@ -45,8 +39,10 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
      */
     function updateTokenAddress(address tokenAddress) public onlyOwner {
         require(tokenAddress != address(0), "Airdrop: update token to zero address");
-
-        token = ERC20(tokenAddress);
+        if(address(token) != address(0) && token.balanceOf(address(this))  > 0)
+            withdrawTokens();
+        token = IERC20(tokenAddress);
+        totalTokenSupply = token.balanceOf(address(this));
         emit UpdateTokenAddress(tokenAddress);
     }
 
@@ -60,7 +56,7 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
     function depositTokens(uint256 amount) external onlyOwner {
         require(amount > 0, "Airdrop: zero transaction amount");
 
-        totalSupply += amount;
+        totalTokenSupply += amount;
         token.safeTransferFrom(msg.sender, address(this), amount);
         emit DepositTokens(msg.sender, amount);
     }
@@ -83,13 +79,13 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
      * Emits an {WithdrawTokens} event that indicates to what address and how many tokens were withdrawn from the contract.
      * Without parameters.
      */
-    function withdrawTokens() external onlyOwner {
-        require(totalSupply > 0, "Airdrop: none tokens in the contact");
+    function withdrawTokens() public onlyOwner {
+        uint256 balance = token.balanceOf(address(this));
+        require(balance > 0, "Airdrop: none tokens in the contact");
 
-        uint256 totalSupplyBefore = totalSupply;
-        totalSupply = 0;
-        token.safeTransfer(msg.sender, totalSupplyBefore);
-        emit WithdrawTokens(msg.sender, totalSupplyBefore);
+        totalTokenSupply = 0;
+        token.safeTransfer(msg.sender, balance);
+        emit WithdrawTokens(msg.sender, balance);
     }
 
     /**
@@ -103,8 +99,8 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
         uint256 balance = address(this).balance;
         require(balance > 0, "Airdrop: no ether in the contact");
 
-        address payable to = payable(msg.sender);
-        to.transfer(balance);
+        (bool success, ) = payable(msg.sender).call{value: balance}("");
+        require(success, "Airdrop: unable to send value, recipient may have reverted");
         emit WithdrawEther(msg.sender, balance);
     }
 
@@ -127,7 +123,7 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
     function dropTokens(DropStruct calldata dropStruct) public onlyOwner {
         require(dropStruct.deadline > block.timestamp, "Airdrop: deadline of this message has expired");
         require(dropStruct.rewardType == address(token), "Airdrop: invalid reward type in the message");
-        require(checkSign(dropStruct), "Airdrop: this message wasn't signed by owner");
+        require(_checkSign(dropStruct), "Airdrop: this message wasn't signed by owner");
         
 
         tokenBalances[dropStruct.recipient] += dropStruct.amount;
@@ -152,8 +148,8 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
      */
     function dropEther(DropStruct calldata dropStruct) public onlyOwner {
         require(dropStruct.deadline > block.timestamp, "Airdrop: deadline of this message has expired");
-        require(dropStruct.rewardType == 0x0000000000000000000000000000000000000000, "Airdrop: invalid reward type in the message");
-        require(checkSign(dropStruct), "Airdrop: this message wasn't signed by owner");
+        require(dropStruct.rewardType == address(0), "Airdrop: invalid reward type in the message");
+        require(_checkSign(dropStruct), "Airdrop: this message wasn't signed by owner");
         
 
         etherBalances[dropStruct.recipient] += dropStruct.amount;
@@ -172,19 +168,35 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
      *  bytes32 s,
      *  uint8 v
      */
-    function checkSign(DropStruct calldata dropStruct) private view returns(bool isValid) {
-        bytes32 digest =  keccak256(abi.encodePacked(
-            "\x19\x01",
-            DOMAIN_SEPARATOR,
-            keccak256(abi.encode(
-                CONTAINER_TYPE,
-                dropStruct.recipient,
-                dropStruct.amount,
-                dropStruct.deadline,
-                dropStruct.rewardType
-        ))));
+    function checkSign(DropStruct calldata dropStruct) external view returns(bool isValid) {
+        return _checkSign(dropStruct);
+    }
+
+    /**
+     * @dev Checks if the message is signed by the contract owner.
+     *
+     * @param dropStruct Structure consisting of: 
+     *  address recipient,
+     *  uint256 amount,
+     *  uint256 deadline,
+     *  address rewardType,
+     *  bytes32 r,
+     *  bytes32 s,
+     *  uint8 v
+     */
+    function _checkSign(DropStruct calldata dropStruct) private view returns(bool isValid) {
+        bytes32 structHash = keccak256(abi.encode(
+            _CONTAINER_TYPE,
+            dropStruct.recipient,
+            dropStruct.amount,
+            dropStruct.deadline,
+            dropStruct.rewardType
+        ));
+
+        bytes32 hash = _hashTypedDataV4(structHash);
+        address messageSigner = ECDSA.recover( hash, dropStruct.v, dropStruct.r, dropStruct.s );
         
-        return digest.recover(dropStruct.v, dropStruct.r, dropStruct.s) == owner();
+        return messageSigner == owner();
     }
 
     /**
@@ -204,7 +216,7 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
      */
     function drop(DropStruct[] calldata dropStructs) external onlyOwner {
         for (uint256 i = 0; i < dropStructs.length; i++) {           
-            if (dropStructs[i].rewardType == 0x0000000000000000000000000000000000000000)
+            if (dropStructs[i].rewardType == address(0))
                 dropEther(dropStructs[i]);
             else if (dropStructs[i].rewardType == address(token))
                 dropTokens(dropStructs[i]);
@@ -220,12 +232,12 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
      * Without parameters.
      */
     function claimTokens() external {
-        require(tokenBalances[msg.sender] > 0, "Airdrop: there are no tokens in your address");
-        require(totalSupply >= tokenBalances[msg.sender], "Airdrop: not enough tokens in the contract total supply to withdraw them");
+        require(tokenBalances[msg.sender] > 0, "Airdrop: no tokens available");
+        require(totalTokenSupply >= tokenBalances[msg.sender], "Airdrop: contract doesn't own enough tokens");
 
         uint256 amount = tokenBalances[msg.sender];
         tokenBalances[msg.sender] = 0;  
-        totalSupply -= amount;           
+        totalTokenSupply -= amount;           
         token.safeTransfer(msg.sender, amount);  
         emit ClaimTokens(msg.sender, amount);  
     }
@@ -242,8 +254,9 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
 
         uint256 amount = etherBalances[msg.sender];
         etherBalances[msg.sender] = 0;  
-        address payable to = payable(msg.sender);
-        to.transfer(amount);
+        
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        require(success, "Airdrop: unable to send value, recipient may have reverted");
         emit ClaimEther(msg.sender, amount);
     }
 }
