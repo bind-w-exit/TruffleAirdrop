@@ -1,23 +1,23 @@
 const {
     BN,
-    expectEvent,
     constants,
+    expectEvent, 
     expectRevert,
-    snapshot,
-    time
+    snapshot
 } = require("@openzeppelin/test-helpers");
-
 
 require("chai")
     .use(require("chai-as-promised"))
     .use(require("chai-bn")(BN))
     .should();
 
+const EIP712 = require("./utils/eip712.js");
+
 
 const AirdropContract = artifacts.require("AirdropContract.sol");
 const TevaToken = artifacts.require("TevaToken.sol");
 
-const EIP712 = require("./utils/eip712.js");
+
 
 contract("AirdropContract", function(accounts) {
     [deployer, user1, user2, user3] = accounts;
@@ -31,24 +31,24 @@ contract("AirdropContract", function(accounts) {
         snapshotB = await snapshot();
     });
 
-
     describe("Airdrop Contract Test Cases", function () {
 
-        describe("Airdrop Contract Deploy Test Cases", function () {
-
-            it("shouldn't deploy contract if the token address is zero", async () => {
-                await expectRevert(
-                    AirdropContract.new(constants.ZERO_ADDRESS),
-                    "Airdrop: update token to zero address"
-                );
-            });
+        describe("Airdrop Contract Deploy Test Cases 🏗️", function () {
 
             it("should deploy with correct owner", async () => {
                 (await airdropContract.owner()).should.equal(deployer);
             });
+
+            it("shouldn't deploy contract if the token address is zero", async () => {
+                await expectRevert(
+                    AirdropContract.new(constants.ZERO_ADDRESS),
+                    "Airdrop: token address is zero"
+                );
+            });
+        
         });
 
-        describe("Airdrop Contract Owner Test Cases", function () {
+        describe("Airdrop Contract Owner Test Cases 👮", function () {
 
             after(async function () {
                 await snapshotB.restore();
@@ -68,7 +68,7 @@ contract("AirdropContract", function(accounts) {
 
             });
 
-            it("shouldn't update token address from a not the current owner", async () => {
+            it("shouldn't update token address from the non-current owner", async () => {
                 anotherTevaToken = await TevaToken.new();
                 await expectRevert(
                     airdropContract.updateTokenAddress(anotherTevaToken.address, { from: user1 }),
@@ -84,7 +84,7 @@ contract("AirdropContract", function(accounts) {
             });
          
             //depositTokens 
-            it("shouldn't transfer tokens to a contract from a not the current owner", async () => {
+            it("shouldn't transfer tokens to a contract from the non-current owner", async () => {
                 await expectRevert(
                     airdropContract.depositTokens(AMOUNT, { from: user1 }),
                     "Ownable: caller is not the owner"
@@ -99,7 +99,7 @@ contract("AirdropContract", function(accounts) {
             });
             
             //depositEther
-            it("shouldn't transfer tokens to a contract from a not the current owner", async () => {
+            it("shouldn't transfer tokens to a contract from the non-current owner", async () => {
                 await expectRevert(
                     airdropContract.depositEther({ from: user1 }),
                     "Ownable: caller is not the owner"
@@ -107,7 +107,7 @@ contract("AirdropContract", function(accounts) {
             });
 
             //withdrawTokens
-            it("shouldn't transfer tokens from contract to a not the current owner", async () => {
+            it("shouldn't transfer tokens from contract to the non-current owner", async () => {
                 await expectRevert(
                     airdropContract.withdrawTokens({ from: user1 }),
                     "Ownable: caller is not the owner"
@@ -122,7 +122,7 @@ contract("AirdropContract", function(accounts) {
             });
 
             //withdrawEther
-            it("shouldn't transfer ether from contract to a not the current owner", async () => {
+            it("shouldn't transfer ether from contract to the non-current ownerr", async () => {
                 await expectRevert(
                     airdropContract.withdrawEther({ from: user1 }),
                     "Ownable: caller is not the owner"
@@ -137,7 +137,7 @@ contract("AirdropContract", function(accounts) {
             });            
         });
 
-        describe("Deposit Phase Test Cases", function () {
+        describe("Deposit Phase Test Cases 💵", function () {
 
             after(async function () {
                 await snapshotB.restore();
@@ -177,10 +177,20 @@ contract("AirdropContract", function(accounts) {
             });
         });
 
-        describe("Methods With Signatures Phase Test Cases", function () {
+        describe("Methods With Signatures Phase Test Cases ✒️", function () {
 
             after(async function () {
                 await snapshotB.restore();
+            });
+
+            //checkSign
+            it("should check the signature", async () => {
+                deadline = Math.floor(Date.now() / 1000) + 10000;
+                typedData = createTypedData(user1, Number(AMOUNT), deadline, tevaToken.address);   
+                sign = await EIP712.signTypedData(web3, deployer, typedData);
+
+                receipt = await airdropContract.checkSign({ recipient: user1, amount: Number(AMOUNT), deadline: deadline, rewardType: tevaToken.address, r: sign.r, s: sign.s, v: sign.v }); 
+                receipt.should.equal(true);
             });
 
             //dropTokens
@@ -200,7 +210,7 @@ contract("AirdropContract", function(accounts) {
                 );
             });
 
-            it("shouldn't increase tokens for the beneficiaries from a not the current owner", async () => {
+            it("shouldn't increase tokens for the beneficiaries from the non-current owner", async () => {
                 deadline = Math.floor(Date.now() / 1000) + 10000;
                 typedData = createTypedData(user1, Number(AMOUNT), deadline, tevaToken.address);   
                 sign = await EIP712.signTypedData(web3, deployer, typedData);
@@ -224,7 +234,7 @@ contract("AirdropContract", function(accounts) {
                 );
             });
 
-            it("shouldn't increase tokens for the beneficiaries if invalid reward type in the message", async () => {
+            it("shouldn't increase tokens for the beneficiaries if reward type in the message is invalid", async () => {
                 deadline = Math.floor(Date.now() / 1000) + 10000;
                 typedData = createTypedData(user1, Number(AMOUNT), deadline, constants.ZERO_ADDRESS);   
                 sign = await EIP712.signTypedData(web3, deployer, typedData);
@@ -235,7 +245,7 @@ contract("AirdropContract", function(accounts) {
                 );
             });
 
-            it("shouldn't increase tokens for the beneficiaries if message was not signed by owner", async () => {
+            it("shouldn't increase tokens for the beneficiaries if message wasn't signed by owner", async () => {
                 deadline = Math.floor(Date.now() / 1000) + 10000;
                 typedData = createTypedData(user1, Number(AMOUNT), deadline, tevaToken.address);   
                 sign = await EIP712.signTypedData(web3, user1, typedData);
@@ -263,7 +273,7 @@ contract("AirdropContract", function(accounts) {
                 );
             });
 
-            it("shouldn't increase ether for the beneficiaries from a not the current owner", async () => {
+            it("shouldn't increase ether for the beneficiaries from the non-current owner", async () => {
                 deadline = Math.floor(Date.now() / 1000) + 10000;
                 typedData = createTypedData(user1, Number(AMOUNT), deadline, constants.ZERO_ADDRESS);   
                 sign = await EIP712.signTypedData(web3, deployer, typedData);
@@ -287,7 +297,7 @@ contract("AirdropContract", function(accounts) {
                 );
             });
 
-            it("shouldn't increase ether for the beneficiaries if invalid reward type in the message", async () => {
+            it("shouldn't increase ether for the beneficiaries if reward type in the message is invalid", async () => {
                 deadline = Math.floor(Date.now() / 1000) + 10000;
                 typedData = createTypedData(user1, Number(AMOUNT), deadline, tevaToken.address);   
                 sign = await EIP712.signTypedData(web3, deployer, typedData);
@@ -298,7 +308,7 @@ contract("AirdropContract", function(accounts) {
                 );
             });
 
-            it("shouldn't increase ether for the beneficiaries if message was not signed by owner", async () => {
+            it("shouldn't increase ether for the beneficiaries if message wasn't signed by owner", async () => {
                 deadline = Math.floor(Date.now() / 1000) + 10000;
                 typedData = createTypedData(user1, Number(AMOUNT), deadline, constants.ZERO_ADDRESS);   
                 sign = await EIP712.signTypedData(web3, user1, typedData);
@@ -355,7 +365,7 @@ contract("AirdropContract", function(accounts) {
             });
         });
 
-        describe("Withdraw Phase Test Cases (Users and owner)", function () {
+        describe("Withdraw Phase Test Cases (Users and owner) 💳", function () {
 
             before(async function () {
                 await tevaToken.mint(deployer, AMOUNT);
@@ -380,8 +390,29 @@ contract("AirdropContract", function(accounts) {
                 await snapshotC.restore();
             });
 
+            //updateTokenAddress
+            it("should update token address", async () => {
+                anotherTevaToken = await TevaToken.new();
+                receipt = await airdropContract.updateTokenAddress(anotherTevaToken.address);
+                expectEvent(
+                    receipt,
+                    "WithdrawTokens",
+                    {
+                        to: deployer,
+                        amount: AMOUNT
+                    }
+                );
+                expectEvent(
+                    receipt,
+                    "UpdateTokenAddress",
+                    {
+                        newTokenAddress: anotherTevaToken.address
+                    }
+                );
+            });
+
             //withdrawTokens
-            it("Should transfer amount of tokens back to the owner", async () => {
+            it("should transfer amount of tokens back to the owner", async () => {
                 receipt = await airdropContract.withdrawTokens();
                 expectEvent(
                     receipt,
@@ -397,7 +428,7 @@ contract("AirdropContract", function(accounts) {
             });
 
             //withdrawEther
-            it("Should transfer amount of ether back to the owner", async () => {
+            it("should transfer amount of ether back to the owner", async () => {
                 //BalanceBefore = new BN(await web3.eth.getBalance(deployer));
                 receipt = await airdropContract.withdrawEther();
                 expectEvent(
@@ -430,14 +461,14 @@ contract("AirdropContract", function(accounts) {
                 userBalance.should.be.bignumber.equal(AMOUNT);
             });
 
-            it("shouldn't transfer tokens to beneficiary if there are no reward tokens at this addresss", async () => {
+            it("shouldn't transfer tokens to beneficiary if no tokens available", async () => {
                 await expectRevert(
                     airdropContract.claimTokens({ from: user1 }),
                     "Airdrop: no tokens available"
                 );
             });
 
-            it("shouldn't transfer tokens to beneficiary if not enough reward tokens in the contract total supply to withdraw them", async () => {
+            it("shouldn't transfer tokens to beneficiary if contract doesn't own enough tokens", async () => {
                 await airdropContract.dropTokens({ recipient: user1, amount: Number(AMOUNT), deadline: deadline, rewardType: tevaToken.address, r: sign.r, s: sign.s, v: sign.v });
                 await airdropContract.withdrawTokens();
                 
@@ -465,14 +496,14 @@ contract("AirdropContract", function(accounts) {
                 //Balance.should.be.bignumber.equal(new BN(BalanceBefore + AMOUNT - new BN(20000000000) * receipt.gasUsed));
             });
 
-            it("shouldn't transfer ether to beneficiary if there are no reward ether at this addresss", async () => {
+            it("shouldn't transfer ether to beneficiary if there are no ether in your address", async () => {
                 await expectRevert(
                     airdropContract.claimEther({ from: user1 }),
                     "Airdrop: there are no ether in your address"
                 );
             });
 
-            it("shouldn't transfer ether to beneficiary if not enough ether in the contract", async () => {
+            it("shouldn't transfer ether to beneficiary if contract doesn't own enough ether", async () => {
                 await airdropContract.dropEther({ recipient: user2, amount: Number(AMOUNT), deadline: deadline, rewardType: constants.ZERO_ADDRESS, r: sign2.r, s: sign2.s, v: sign2.v });
                 await airdropContract.withdrawEther();
                 
@@ -481,6 +512,7 @@ contract("AirdropContract", function(accounts) {
                     "Airdrop: contract doesn't own enough ether"
                 );
             });
+
         });
 
 
@@ -517,8 +549,5 @@ contract("AirdropContract", function(accounts) {
                 }
             };
         }
-
-       
     });
-
 });

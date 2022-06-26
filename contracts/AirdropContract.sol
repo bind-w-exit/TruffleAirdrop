@@ -26,7 +26,7 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
      * @param tokenAddress ERC-20 token address.
      */
     constructor(address tokenAddress) {
-        require(tokenAddress != address(0), "Airdrop: update token to zero address");
+        require(tokenAddress != address(0), "Airdrop: token address is zero");
         token = IERC20(tokenAddress);
         totalTokenSupply = token.balanceOf(address(this));
         emit UpdateTokenAddress(tokenAddress);
