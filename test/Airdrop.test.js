@@ -179,9 +179,9 @@ contract("AirdropContract", function(accounts) {
 
         describe("Methods With Signatures Phase Test Cases ✒️", function () {
 
-            after(async function () {
+            afterEach(async function () {
                 await snapshotB.restore();
-            });
+            })
 
             //checkSign
             it("should check the signature", async () => {
@@ -199,6 +199,9 @@ contract("AirdropContract", function(accounts) {
                 typedData = createTypedData(user1, Number(AMOUNT), deadline, tevaToken.address);   
                 sign = await EIP712.signTypedData(web3, deployer, typedData);
 
+                balanceBefore = await airdropContract.tokenBalances(user1);
+                balanceBefore.should.be.bignumber.equal(ZERO_AMOUNT);
+
                 receipt = await airdropContract.dropTokens({ recipient: user1, amount: Number(AMOUNT), deadline: deadline, rewardType: tevaToken.address, r: sign.r, s: sign.s, v: sign.v }); 
                 expectEvent(
                     receipt,
@@ -208,6 +211,9 @@ contract("AirdropContract", function(accounts) {
                         amount: AMOUNT
                     }
                 );
+
+                balanceAfter = await airdropContract.tokenBalances(user1);
+                balanceAfter.should.be.bignumber.equal(AMOUNT);
             });
 
             it("shouldn't increase tokens for the beneficiaries from the non-current owner", async () => {
@@ -262,6 +268,9 @@ contract("AirdropContract", function(accounts) {
                 typedData = createTypedData(user1, Number(AMOUNT), deadline, constants.ZERO_ADDRESS);   
                 sign = await EIP712.signTypedData(web3, deployer, typedData);
 
+                balanceBefore = await airdropContract.etherBalances(user1);
+                balanceBefore.should.be.bignumber.equal(ZERO_AMOUNT);
+
                 receipt = await airdropContract.dropEther({ recipient: user1, amount: Number(AMOUNT), deadline: deadline, rewardType: constants.ZERO_ADDRESS, r: sign.r, s: sign.s, v: sign.v }); 
                 expectEvent(
                     receipt,
@@ -271,6 +280,9 @@ contract("AirdropContract", function(accounts) {
                         amount: AMOUNT
                     }
                 );
+
+                balanceAfter = await airdropContract.etherBalances(user1);
+                balanceAfter.should.be.bignumber.equal(AMOUNT);
             });
 
             it("shouldn't increase ether for the beneficiaries from the non-current owner", async () => {
@@ -327,6 +339,10 @@ contract("AirdropContract", function(accounts) {
                 typedData2 = createTypedData(user2, Number(AMOUNT), deadline, constants.ZERO_ADDRESS);   
                 sign2 = await EIP712.signTypedData(web3, deployer, typedData2);
 
+                tokenBalanceBefore = await airdropContract.tokenBalances(user1);
+                tokenBalanceBefore.should.be.bignumber.equal(ZERO_AMOUNT);
+                etherBalanceBefore = await airdropContract.etherBalances(user2);
+                etherBalanceBefore.should.be.bignumber.equal(ZERO_AMOUNT);
 
                 receipt = await airdropContract.drop([
                     { recipient: user1, amount: Number(AMOUNT), deadline: deadline, rewardType: tevaToken.address, r: sign.r, s: sign.s, v: sign.v },
@@ -349,6 +365,11 @@ contract("AirdropContract", function(accounts) {
                         amount: AMOUNT
                     }
                 );
+
+                tokenBalanceAfter = await airdropContract.tokenBalances(user1);
+                tokenBalanceAfter.should.be.bignumber.equal(AMOUNT);
+                etherBalanceAfter = await airdropContract.etherBalances(user2);
+                etherBalanceAfter.should.be.bignumber.equal(AMOUNT);
             });
 
             it("shouldn't increase ether and tokens for the beneficiaries if an invalid reward type is passed", async () => {
@@ -429,7 +450,7 @@ contract("AirdropContract", function(accounts) {
 
             //withdrawEther
             it("should transfer amount of ether back to the owner", async () => {
-                //BalanceBefore = new BN(await web3.eth.getBalance(deployer));
+                BalanceBefore = new BN(await web3.eth.getBalance(deployer));
                 receipt = await airdropContract.withdrawEther();
                 expectEvent(
                     receipt,
@@ -439,8 +460,9 @@ contract("AirdropContract", function(accounts) {
                         amount: AMOUNT
                     }
                 );
-                //Balance = new BN(await web3.eth.getBalance(deployer));
-                //Balance.should.be.bignumber.equal(new BN(BalanceBefore + AMOUNT - new BN(20000000000) * receipt.gasUsed));
+                Balance = new BN(await web3.eth.getBalance(deployer));
+                Fee = new BN(20000000000 * receipt.receipt.gasUsed);
+                Balance.should.be.bignumber.equal(BalanceBefore.add(AMOUNT).sub(Fee));
             });
 
             //claimToken
@@ -481,7 +503,7 @@ contract("AirdropContract", function(accounts) {
             //claimEther
             it("should transfer ether to recipients", async () => {
                 await airdropContract.dropEther({ recipient: user2, amount: Number(AMOUNT), deadline: deadline, rewardType: constants.ZERO_ADDRESS, r: sign2.r, s: sign2.s, v: sign2.v });
-                //BalanceBefore = new BN(await web3.eth.getBalance(user2));
+                BalanceBefore = new BN(await web3.eth.getBalance(user2));
                 receipt = await airdropContract.claimEther({from: user2});
                 expectEvent(
                     receipt,
@@ -492,8 +514,9 @@ contract("AirdropContract", function(accounts) {
                     }
                 );
                 
-                //Balance = new BN(await web3.eth.getBalance(user2));
-                //Balance.should.be.bignumber.equal(new BN(BalanceBefore + AMOUNT - new BN(20000000000) * receipt.gasUsed));
+                Balance = new BN(await web3.eth.getBalance(user2));
+                Fee = new BN(20000000000 * receipt.receipt.gasUsed);
+                Balance.should.be.bignumber.equal(BalanceBefore.add(AMOUNT).sub(Fee));
             });
 
             it("shouldn't transfer ether to beneficiary if there are no ether in your address", async () => {

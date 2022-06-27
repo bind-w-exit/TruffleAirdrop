@@ -28,28 +28,10 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
     constructor(address tokenAddress) {
         require(tokenAddress != address(0), "Airdrop: token address is zero");
         token = IERC20(tokenAddress);
-        totalTokenSupply = token.balanceOf(address(this));
         emit UpdateTokenAddress(tokenAddress);
     }
 
-    /**
-     * @dev Updates token address.
-     * Can only be called by the current owner.
-     *
-     * Emits an {UpdateTokenAddress} event that indicates a change in the token address.
-     *
-     * @param tokenAddress ERC-20 token address.
-     */
-    function updateTokenAddress(address tokenAddress) public onlyOwner {
-        require(tokenAddress != address(0), "Airdrop: update token to zero address");
-        if(token.balanceOf(address(this))  > 0)
-            withdrawTokens();
-        token = IERC20(tokenAddress);
-        totalTokenSupply = token.balanceOf(address(this));
-        emit UpdateTokenAddress(tokenAddress);
-    }
-
-    /**
+     /**
      * @dev Transfers tokens from owner to this contract.
      * Can only be called by the current owner.
      *
@@ -74,22 +56,6 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
     function depositEther() external payable onlyOwner {
         emit DepositEther(msg.sender, msg.value);
     }
-    
-    /**
-     * @dev Transfers tokens back to the owner.
-     * Can only be called by the current owner.
-     *
-     * Emits an {WithdrawTokens} event that indicates to what address and how many tokens were withdrawn from the contract.
-     * Without parameters.
-     */
-    function withdrawTokens() public onlyOwner {
-        uint256 balance = token.balanceOf(address(this));
-        require(balance > 0, "Airdrop: none tokens in the contact");
-
-        totalTokenSupply = 0;
-        token.safeTransfer(msg.sender, balance);
-        emit WithdrawTokens(msg.sender, balance);
-    }
 
     /**
      * @dev Transfers ether back to the owner.
@@ -105,6 +71,48 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
         (bool success, ) = payable(msg.sender).call{value: balance}("");
         require(success, "Airdrop: unable to send value, recipient may have reverted");
         emit WithdrawEther(msg.sender, balance);
+    }
+
+    /**
+     * @dev Checks if the message is signed by the contract owner.
+     *
+     * @param dropStruct Structure consisting of: 
+     *  address recipient,
+     *  uint256 amount,
+     *  uint256 deadline,
+     *  address rewardType,
+     *  bytes32 r,
+     *  bytes32 s,
+     *  uint8 v
+     */
+    function checkSign(DropStruct calldata dropStruct) external view returns(bool isValid) {
+        return _checkSign(dropStruct);
+    }
+
+    /**
+     * @dev Sets the eligible tokens and ether amounts for recipients.
+     * Can only be called by the current owner.
+     * The owner should sign the transaction.
+     *
+     *
+     * @param dropStructs An array of structures consisting of: 
+     *  address recipient,
+     *  uint256 amount,
+     *  uint256 deadline,
+     *  address rewardType,
+     *  bytes32 r,
+     *  bytes32 s,
+     *  uint8 v
+     */
+    function drop(DropStruct[] calldata dropStructs) external onlyOwner {
+        for (uint256 i = 0; i < dropStructs.length; i++) {           
+            if (dropStructs[i].rewardType == address(0))
+                dropEther(dropStructs[i]);
+            else if (dropStructs[i].rewardType == address(token))
+                dropTokens(dropStructs[i]);
+            else
+                revert("Airdrop: such reward doesn't exist");
+        }
     }
 
     /**
@@ -158,76 +166,7 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
         etherBalances[dropStruct.recipient] += dropStruct.amount;
         emit DropEther(dropStruct.recipient, dropStruct.amount);
     }
-
-    /**
-     * @dev Checks if the message is signed by the contract owner.
-     *
-     * @param dropStruct Structure consisting of: 
-     *  address recipient,
-     *  uint256 amount,
-     *  uint256 deadline,
-     *  address rewardType,
-     *  bytes32 r,
-     *  bytes32 s,
-     *  uint8 v
-     */
-    function checkSign(DropStruct calldata dropStruct) external view returns(bool isValid) {
-        return _checkSign(dropStruct);
-    }
-
-    /**
-     * @dev Checks if the message is signed by the contract owner.
-     *
-     * @param dropStruct Structure consisting of: 
-     *  address recipient,
-     *  uint256 amount,
-     *  uint256 deadline,
-     *  address rewardType,
-     *  bytes32 r,
-     *  bytes32 s,
-     *  uint8 v
-     */
-    function _checkSign(DropStruct calldata dropStruct) private view returns(bool isValid) {
-        bytes32 structHash = keccak256(abi.encode(
-            _CONTAINER_TYPE,
-            dropStruct.recipient,
-            dropStruct.amount,
-            dropStruct.deadline,
-            dropStruct.rewardType
-        ));
-
-        bytes32 hash = _hashTypedDataV4(structHash);
-        address messageSigner = ECDSA.recover( hash, dropStruct.v, dropStruct.r, dropStruct.s );
-        
-        return messageSigner == owner();
-    }
-
-    /**
-     * @dev Sets the eligible tokens and ether amounts for recipients.
-     * Can only be called by the current owner.
-     * The owner should sign the transaction.
-     *
-     *
-     * @param dropStructs An array of structures consisting of: 
-     *  address recipient,
-     *  uint256 amount,
-     *  uint256 deadline,
-     *  address rewardType,
-     *  bytes32 r,
-     *  bytes32 s,
-     *  uint8 v
-     */
-    function drop(DropStruct[] calldata dropStructs) external onlyOwner {
-        for (uint256 i = 0; i < dropStructs.length; i++) {           
-            if (dropStructs[i].rewardType == address(0))
-                dropEther(dropStructs[i]);
-            else if (dropStructs[i].rewardType == address(token))
-                dropTokens(dropStructs[i]);
-            else
-                revert("Airdrop: such reward doesn't exist");
-        }
-    }
-
+    
     /**
      * @dev Transfers tokens to beneficiary.
      *
@@ -261,5 +200,65 @@ contract AirdropContract is IAirdropContract, Ownable, EIP712("Airdrop", "1") {
         (bool success, ) = payable(msg.sender).call{value: amount}("");
         require(success, "Airdrop: unable to send value, recipient may have reverted");
         emit ClaimEther(msg.sender, amount);
+    }
+
+    /**
+     * @dev Updates token address.
+     * Can only be called by the current owner.
+     *
+     * Emits an {UpdateTokenAddress} event that indicates a change in the token address.
+     *
+     * @param tokenAddress ERC-20 token address.
+     */
+    function updateTokenAddress(address tokenAddress) public onlyOwner {
+        require(tokenAddress != address(0), "Airdrop: update token to zero address");
+        if(token.balanceOf(address(this))  > 0)
+            withdrawTokens();
+        token = IERC20(tokenAddress);
+        totalTokenSupply = token.balanceOf(address(this));
+        emit UpdateTokenAddress(tokenAddress);
+    }
+  
+    /**
+     * @dev Transfers tokens back to the owner.
+     * Can only be called by the current owner.
+     *
+     * Emits an {WithdrawTokens} event that indicates to what address and how many tokens were withdrawn from the contract.
+     * Without parameters.
+     */
+    function withdrawTokens() public onlyOwner {
+        uint256 balance = token.balanceOf(address(this));
+        require(balance > 0, "Airdrop: none tokens in the contact");
+
+        totalTokenSupply = 0;
+        token.safeTransfer(msg.sender, balance);
+        emit WithdrawTokens(msg.sender, balance);
+    }
+
+    /**
+     * @dev Checks if the message is signed by the contract owner.
+     *
+     * @param dropStruct Structure consisting of: 
+     *  address recipient,
+     *  uint256 amount,
+     *  uint256 deadline,
+     *  address rewardType,
+     *  bytes32 r,
+     *  bytes32 s,
+     *  uint8 v
+     */
+    function _checkSign(DropStruct calldata dropStruct) private view returns(bool isValid) {
+        bytes32 structHash = keccak256(abi.encode(
+            _CONTAINER_TYPE,
+            dropStruct.recipient,
+            dropStruct.amount,
+            dropStruct.deadline,
+            dropStruct.rewardType
+        ));
+
+        bytes32 hash = _hashTypedDataV4(structHash);
+        address messageSigner = ECDSA.recover( hash, dropStruct.v, dropStruct.r, dropStruct.s );
+        
+        return messageSigner == owner();
     }
 }
