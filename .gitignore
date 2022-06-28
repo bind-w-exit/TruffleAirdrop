@@ -8,3 +8,4 @@ coverage.json
 /build
 /.secret
 /.deploy-log
+/.env
