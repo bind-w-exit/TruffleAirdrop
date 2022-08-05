@@ -6,6 +6,4 @@ coverage.json
 /.coverage_contracts
 /.coverage_artifacts
 /build
-/.secret
-/.deploy-log
-/.env
+.env

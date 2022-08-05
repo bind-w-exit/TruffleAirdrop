@@ -1,0 +1,182 @@
+Starting migrations...
+======================
+> Network name:    'ropsten'
+> Network id:      3
+> Block gas limit: 30000000 (0x1c9c380)
+
+
+1_initial_migration.js
+======================
+
+   Deploying 'Migrations'
+   ----------------------
+   > transaction hash:    0x6047ffed05922bb917a05a60eddbe161ddb3bab6dd3bc73c3b5c24d7ca056fbe
+   > Blocks: 1            Seconds: 20
+   > contract address:    0xf50865852e5687D550C9E93aADF9B45Bb7d36E25
+   > block number:        12476398
+   > block timestamp:     1656346596
+   > account:             0x1388c300539f6e1aDa9DF4DD3aE2129a56F079a5
+   > balance:             0.971667740915096353
+   > gas used:            250154 (0x3d12a)
+   > gas price:           2.500000012 gwei
+   > value sent:          0 ETH
+   > total cost:          0.000625385003001848 ETH
+
+   Pausing for 2 confirmations...
+
+   -------------------------------
+   > confirmation number: 1 (block: 12476399)
+   > confirmation number: 2 (block: 12476400)
+   > Saving migration to chain.
+   > Saving artifacts
+   -------------------------------------
+   > Total cost:     0.000625385003001848 ETH
+
+
+2_deploy_contracts.js
+=====================
+
+   Deploying 'TevaToken'
+   ---------------------
+   > transaction hash:    0x1a2a18e7b68f1ec2730aa05e8f3dbe38ab75dc6ce999200ac0bd67e91a777acc
+   > Blocks: 1            Seconds: 44
+   > contract address:    0xFbb8B6157aa003363e13Ac85466d371807Eb8fb0
+   > block number:        12476403
+   > block timestamp:     1656346680
+   > account:             0x1388c300539f6e1aDa9DF4DD3aE2129a56F079a5
+   > balance:             0.967270185893896263
+   > gas used:            1713109 (0x1a23d5)
+   > gas price:           2.500000012 gwei
+   > value sent:          0 ETH
+   > total cost:          0.004282772520557308 ETH
+
+   Pausing for 2 confirmations...
+
+   -------------------------------
+   > confirmation number: 1 (block: 12476404)
+   > confirmation number: 2 (block: 12476405)
+
+   Deploying 'AirdropContract'
+   ---------------------------
+   > transaction hash:    0x3612f6e059ea8cf86e6a13aadcacf8f25f172820f7ea6f9165c3580d9e488040
+   > Blocks: 0            Seconds: 8
+   > contract address:    0x436c2c99A7c7F6a022619df00c7aB3EC069A26CD
+   > block number:        12476406
+   > block timestamp:     1656346728
+   > account:             0x1388c300539f6e1aDa9DF4DD3aE2129a56F079a5
+   > balance:             0.959168340848525931
+   > gas used:            3240738 (0x317322)
+   > gas price:           2.500000014 gwei
+   > value sent:          0 ETH
+   > total cost:          0.008101845045370332 ETH
+
+   Pausing for 2 confirmations...
+
+   -------------------------------
+   > confirmation number: 1 (block: 12476407)
+   > confirmation number: 2 (block: 12476408)
+   > Saving migration to chain.
+   > Saving artifacts
+   -------------------------------------
+   > Total cost:     0.01238461756592764 ETH
+
+Summary
+=======
+> Total deployments:   3
+> Final cost:          0.013010002568929488 ETH
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+                                          After final fix
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+PS C:\Users\12And\Desktop\solidity\TruffleAirdrop> truffle migrate --network infura_ropsten
+
+Compiling your contracts...
+===========================
+> Compiling @openzeppelin\contracts\access\Ownable.sol
+> Compiling @openzeppelin\contracts\token\ERC20\ERC20.sol
+> Compiling @openzeppelin\contracts\token\ERC20\IERC20.sol
+> Compiling @openzeppelin\contracts\token\ERC20\extensions\IERC20Metadata.sol
+> Compiling @openzeppelin\contracts\token\ERC20\utils\SafeERC20.sol
+> Compiling @openzeppelin\contracts\utils\Address.sol
+> Compiling @openzeppelin\contracts\utils\Context.sol
+> Compiling @openzeppelin\contracts\utils\Strings.sol
+> Compiling @openzeppelin\contracts\utils\cryptography\ECDSA.sol
+> Compiling @openzeppelin\contracts\utils\cryptography\draft-EIP712.sol
+> Compiling .\contracts\AirdropContract.sol
+> Compiling .\contracts\Migrations.sol
+> Compiling .\contracts\TevaToken.sol
+> Compiling .\contracts\interfaces\IAirdropContract.sol
+> Artifacts written to C:\Users\12And\Desktop\solidity\TruffleAirdrop\build\contracts
+> Compiled successfully using:
+   - solc: 0.8.14+commit.80d49f37.Emscripten.clang
+
+
+Starting migrations...
+======================
+> Network name:    'infura_ropsten'
+> Network id:      3
+> Block gas limit: 30000000 (0x1c9c380)
+
+
+2_deploy_contracts.js
+=====================
+
+   Deploying 'TevaToken'
+   ---------------------
+   > transaction hash:    0xf52fae089bb27d6fb4da079343403943a70aadc6eb89422994aa369d0f6dab7f
+   > Blocks: 1            Seconds: 40
+   > contract address:    0xceC87B3d265F81DFe180cC3639D5B70046085395
+   > block number:        12728382
+   > block timestamp:     1659727272
+   > account:             0x1388c300539f6e1aDa9DF4DD3aE2129a56F079a5
+   > balance:             4.710279204913354763
+   > gas used:            1713109 (0x1a23d5)
+   > gas price:           2.500000007 gwei
+   > value sent:          0 ETH
+   > total cost:          0.004282772511991763 ETH
+
+   Pausing for 1 confirmations...
+
+   -------------------------------
+   > confirmation number: 1 (block: 12728383)
+
+   Deploying 'AirdropContract'
+   ---------------------------
+   > transaction hash:    0x1709d9e7c014a81fce3d92e5b80a605c64dc01e4bb141b5e119fb54178b81961
+   > Blocks: 2            Seconds: 32
+   > contract address:    0x67cFE4324ba882025aB75d52b0664720D679BFEc
+   > block number:        12728385
+   > block timestamp:     1659727320
+   > account:             0x1388c300539f6e1aDa9DF4DD3aE2129a56F079a5
+   > balance:             4.702177389890669681
+   > gas used:            3240726 (0x317316)
+   > gas price:           2.500000007 gwei
+   > value sent:          0 ETH
+   > total cost:          0.008101815022685082 ETH
+
+   Pausing for 1 confirmations...
+
+   -------------------------------
+   > confirmation number: 1 (block: 12728386)
+   > Saving migration to chain.
+   > Saving artifacts
+   -------------------------------------
+   > Total cost:     0.012384587534676845 ETH
+
+Summary
+=======
+> Total deployments:   2
+> Final cost:          0.012384587534676845 ETH
+
+PS C:\Users\12And\Desktop\solidity\TruffleAirdrop> truffle run verify TevaToken --network infura_ropsten
+Verifying TevaToken
+Already Verified: https://ropsten.etherscan.io/address/0xceC87B3d265F81DFe180cC3639D5B70046085395#code
+Successfully verified 1 contract(s).
+
+PS C:\Users\12And\Desktop\solidity\TruffleAirdrop> truffle run verify AirdropContract --network infura_ropsten
+Verifying AirdropContract
+Pass - Verified: https://ropsten.etherscan.io/address/0x67cFE4324ba882025aB75d52b0664720D679BFEc#code
+Successfully verified 1 contract(s).
