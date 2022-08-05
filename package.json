@@ -2,8 +2,11 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.6.0",
     "@openzeppelin/test-helpers": "^0.5.15",
+    "@truffle/hdwallet-provider": "^2.0.9",
     "chai-as-promised": "^7.1.1",
     "chai-bn": "^0.3.1",
-    "eip-712": "^1.0.0"
+    "dotenv": "^16.0.1",
+    "eip-712": "^1.0.0",
+    "truffle-plugin-verify": "^0.5.26"
   }
 }
